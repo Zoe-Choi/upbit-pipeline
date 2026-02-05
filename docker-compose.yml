@@ -1,0 +1,152 @@
+version: '3.8'
+
+# Kafka 클러스터 (3 브로커) - KRaft 모드
+# M1 Pro 16GB RAM 환경에 최적화
+
+services:
+  # Kafka Broker 1 (Controller + Broker)
+  kafka-1:
+    image: bitnami/kafka:3.6
+    container_name: kafka-1
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      # KRaft 설정
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
+      - KAFKA_KRAFT_CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
+      # 리스너 설정
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:29092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka-1:9092,EXTERNAL://localhost:29092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      # 클러스터 설정
+      - KAFKA_CFG_NUM_PARTITIONS=3
+      - KAFKA_CFG_DEFAULT_REPLICATION_FACTOR=3
+      - KAFKA_CFG_MIN_INSYNC_REPLICAS=2
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+      # 메모리 설정
+      - KAFKA_HEAP_OPTS=-Xmx256m -Xms128m
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    volumes:
+      - kafka_1_data:/bitnami/kafka
+    networks:
+      - kafka-network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # Kafka Broker 2 (Controller + Broker)
+  kafka-2:
+    image: bitnami/kafka:3.6
+    container_name: kafka-2
+    ports:
+      - "9093:9092"
+      - "29093:29093"
+    environment:
+      - KAFKA_CFG_NODE_ID=2
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
+      - KAFKA_KRAFT_CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:29093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka-2:9092,EXTERNAL://localhost:29093
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_CFG_NUM_PARTITIONS=3
+      - KAFKA_CFG_DEFAULT_REPLICATION_FACTOR=3
+      - KAFKA_CFG_MIN_INSYNC_REPLICAS=2
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_HEAP_OPTS=-Xmx256m -Xms128m
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    volumes:
+      - kafka_2_data:/bitnami/kafka
+    networks:
+      - kafka-network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # Kafka Broker 3 (Controller + Broker)
+  kafka-3:
+    image: bitnami/kafka:3.6
+    container_name: kafka-3
+    ports:
+      - "9094:9092"
+      - "29094:29094"
+    environment:
+      - KAFKA_CFG_NODE_ID=3
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
+      - KAFKA_KRAFT_CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:29094
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka-3:9092,EXTERNAL://localhost:29094
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_CFG_NUM_PARTITIONS=3
+      - KAFKA_CFG_DEFAULT_REPLICATION_FACTOR=3
+      - KAFKA_CFG_MIN_INSYNC_REPLICAS=2
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_HEAP_OPTS=-Xmx256m -Xms128m
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    volumes:
+      - kafka_3_data:/bitnami/kafka
+    networks:
+      - kafka-network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # Kafka UI - 클러스터 모니터링
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=upbit-pipeline-cluster
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka-1:9092,kafka-2:9092,kafka-3:9092
+    networks:
+      - kafka-network
+    depends_on:
+      - kafka-1
+      - kafka-2
+      - kafka-3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+networks:
+  kafka-network:
+    driver: bridge
+
+volumes:
+  kafka_1_data:
+  kafka_2_data:
+  kafka_3_data:
