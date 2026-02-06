@@ -1,54 +1,59 @@
 #!/bin/bash
-
-# Kafka 클러스터 테스트 스크립트
-
+# ============================================
+# Kafka Topic Testing Script
+# ============================================
 set -e
 
-TOPIC_NAME="test-topic"
+echo "========================================="
+echo "Kafka Topic Test"
+echo "========================================="
 
-echo "🧪 Kafka 클러스터 테스트를 시작합니다..."
+# Load environment
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    export $(grep -v '^#' "$PROJECT_ROOT/.env" | xargs)
+fi
+
+BOOTSTRAP="${KAFKA_BOOTSTRAP_SERVERS:-localhost:29092}"
+TOPIC_TICKER="${KAFKA_TOPIC_TICKER:-upbit-ticker}"
+TOPIC_TRADE="${KAFKA_TOPIC_TRADE:-upbit-trade}"
+
+echo "Bootstrap Servers: $BOOTSTRAP"
 echo ""
 
-# 토픽 생성
-echo "📝 테스트 토픽 생성..."
-docker exec kafka-1 kafka-topics.sh \
-    --bootstrap-server kafka-1:9092 \
-    --create \
-    --topic $TOPIC_NAME \
-    --partitions 3 \
-    --replication-factor 3 \
-    --if-not-exists
-
-echo ""
-echo "📋 토픽 목록:"
-docker exec kafka-1 kafka-topics.sh \
+# List topics
+echo "1. Listing topics..."
+docker exec kafka-1 /opt/kafka/bin/kafka-topics.sh \
     --bootstrap-server kafka-1:9092 \
     --list
 
 echo ""
-echo "📊 토픽 상세 정보:"
-docker exec kafka-1 kafka-topics.sh \
-    --bootstrap-server kafka-1:9092 \
-    --describe \
-    --topic $TOPIC_NAME
+echo "2. Topic details:"
+
+for topic in "$TOPIC_TICKER" "$TOPIC_TRADE"; do
+    echo ""
+    echo "--- $topic ---"
+    docker exec kafka-1 /opt/kafka/bin/kafka-topics.sh \
+        --bootstrap-server kafka-1:9092 \
+        --describe \
+        --topic "$topic" 2>/dev/null || echo "Topic not found: $topic"
+done
 
 echo ""
-echo "✉️ 테스트 메시지 전송..."
-echo "Hello Kafka from Upbit Pipeline!" | docker exec -i kafka-1 kafka-console-producer.sh \
+echo "3. Consumer group status:"
+docker exec kafka-1 /opt/kafka/bin/kafka-consumer-groups.sh \
     --bootstrap-server kafka-1:9092 \
-    --topic $TOPIC_NAME
+    --list 2>/dev/null || echo "No consumer groups found"
 
 echo ""
-echo "📨 메시지 수신 테스트..."
-docker exec kafka-1 kafka-console-consumer.sh \
-    --bootstrap-server kafka-1:9092 \
-    --topic $TOPIC_NAME \
-    --from-beginning \
-    --max-messages 1
+echo "4. Consume sample messages from $TOPIC_TICKER (Ctrl+C to stop):"
+echo "   docker exec -it kafka-1 /opt/kafka/bin/kafka-console-consumer.sh \\"
+echo "       --bootstrap-server kafka-1:9092 \\"
+echo "       --topic $TOPIC_TICKER \\"
+echo "       --from-beginning \\"
+echo "       --max-messages 5"
 
 echo ""
-echo "✅ Kafka 클러스터 테스트 완료!"
-echo ""
-echo "💡 Python에서 연결하기:"
-echo '   from kafka import KafkaProducer'
-echo '   producer = KafkaProducer(bootstrap_servers=["localhost:29092", "localhost:29093", "localhost:29094"])'
+echo "========================================="

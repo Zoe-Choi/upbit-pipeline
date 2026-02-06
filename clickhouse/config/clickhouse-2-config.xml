@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<clickhouse>
+    <logger>
+        <level>information</level>
+        <console>1</console>
+    </logger>
+
+    <http_port>8123</http_port>
+    <tcp_port>9000</tcp_port>
+    <interserver_http_port>9009</interserver_http_port>
+
+    <max_connections>100</max_connections>
+    <keep_alive_timeout>3</keep_alive_timeout>
+    <max_concurrent_queries>50</max_concurrent_queries>
+
+    <path>/var/lib/clickhouse/</path>
+    <tmp_path>/var/lib/clickhouse/tmp/</tmp_path>
+    <user_files_path>/var/lib/clickhouse/user_files/</user_files_path>
+
+    <users_config>users.xml</users_config>
+    <default_profile>default</default_profile>
+    <default_database>default</default_database>
+
+    <listen_host>0.0.0.0</listen_host>
+
+    <!-- ClickHouse Keeper 연결 설정 -->
+    <zookeeper>
+        <node>
+            <host>clickhouse-keeper</host>
+            <port>9181</port>
+        </node>
+    </zookeeper>
+
+    <!-- 클러스터 설정: 2샤드 구성 -->
+    <remote_servers>
+        <upbit_cluster>
+            <!-- Shard 1 -->
+            <shard>
+                <replica>
+                    <host>clickhouse-1</host>
+                    <port>9000</port>
+                </replica>
+            </shard>
+            <!-- Shard 2 -->
+            <shard>
+                <replica>
+                    <host>clickhouse-2</host>
+                    <port>9000</port>
+                </replica>
+            </shard>
+        </upbit_cluster>
+    </remote_servers>
+
+    <!-- 현재 노드 식별 (Shard 2) -->
+    <macros>
+        <shard>2</shard>
+        <replica>clickhouse-2</replica>
+        <cluster>upbit_cluster</cluster>
+    </macros>
+
+    <!-- 분산 DDL 설정 -->
+    <distributed_ddl>
+        <path>/clickhouse/task_queue/ddl</path>
+    </distributed_ddl>
+</clickhouse>

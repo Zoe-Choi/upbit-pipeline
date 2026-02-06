@@ -1,0 +1,191 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "PDEE91DDB90597936" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never"
+          },
+          "unit": "currencyKRW"
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "BTC" }, "properties": [{ "id": "color", "value": { "fixedColor": "#F7931A", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "ETH" }, "properties": [{ "id": "color", "value": { "fixedColor": "#627EEA", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "SOL" }, "properties": [{ "id": "color", "value": { "fixedColor": "#00FFA3", "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi" }
+      },
+      "title": "BTC / ETH / SOL Price",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "PDEE91DDB90597936" },
+          "queryType": "sql",
+          "rawSql": "SELECT\n  toDateTime(event_time) as time,\n  trade_price as BTC\nFROM upbit.ticker_local\nWHERE market = 'KRW-BTC'\n  AND event_time >= now() - INTERVAL 10 MINUTE\nORDER BY time ASC",
+          "refId": "BTC",
+          "format": 1
+        },
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "PDEE91DDB90597936" },
+          "queryType": "sql",
+          "rawSql": "SELECT\n  toDateTime(event_time) as time,\n  trade_price as ETH\nFROM upbit.ticker_local\nWHERE market = 'KRW-ETH'\n  AND event_time >= now() - INTERVAL 10 MINUTE\nORDER BY time ASC",
+          "refId": "ETH",
+          "format": 1
+        },
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "PDEE91DDB90597936" },
+          "queryType": "sql",
+          "rawSql": "SELECT\n  toDateTime(event_time) as time,\n  trade_price as SOL\nFROM upbit.ticker_local\nWHERE market = 'KRW-SOL'\n  AND event_time >= now() - INTERVAL 10 MINUTE\nORDER BY time ASC",
+          "refId": "SOL",
+          "format": 1
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "PDEE91DDB90597936" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "#F7931A", "value": null }] },
+          "unit": "currencyKRW"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 12 },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/^BTC$/", "values": false },
+        "textMode": "auto"
+      },
+      "title": "BTC Price",
+      "type": "stat",
+      "targets": [{
+        "datasource": { "type": "grafana-clickhouse-datasource", "uid": "PDEE91DDB90597936" },
+        "queryType": "sql",
+        "rawSql": "SELECT trade_price as BTC FROM upbit.ticker_local WHERE market = 'KRW-BTC' ORDER BY event_time DESC LIMIT 1",
+        "refId": "A",
+        "format": 1
+      }]
+    },
+    {
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "PDEE91DDB90597936" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "#627EEA", "value": null }] },
+          "unit": "currencyKRW"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 12 },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/^ETH$/", "values": false },
+        "textMode": "auto"
+      },
+      "title": "ETH Price",
+      "type": "stat",
+      "targets": [{
+        "datasource": { "type": "grafana-clickhouse-datasource", "uid": "PDEE91DDB90597936" },
+        "queryType": "sql",
+        "rawSql": "SELECT trade_price as ETH FROM upbit.ticker_local WHERE market = 'KRW-ETH' ORDER BY event_time DESC LIMIT 1",
+        "refId": "A",
+        "format": 1
+      }]
+    },
+    {
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "PDEE91DDB90597936" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "#00FFA3", "value": null }] },
+          "unit": "currencyKRW"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 12 },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/^SOL$/", "values": false },
+        "textMode": "auto"
+      },
+      "title": "SOL Price",
+      "type": "stat",
+      "targets": [{
+        "datasource": { "type": "grafana-clickhouse-datasource", "uid": "PDEE91DDB90597936" },
+        "queryType": "sql",
+        "rawSql": "SELECT trade_price as SOL FROM upbit.ticker_local WHERE market = 'KRW-SOL' ORDER BY event_time DESC LIMIT 1",
+        "refId": "A",
+        "format": 1
+      }]
+    },
+    {
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "PDEE91DDB90597936" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "price" }, "properties": [{ "id": "unit", "value": "currencyKRW" }] },
+          { "matcher": { "id": "byName", "options": "change" }, "properties": [{ "id": "unit", "value": "percentunit" }] }
+        ]
+      },
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 18 },
+      "id": 5,
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true
+      },
+      "title": "Latest Data",
+      "type": "table",
+      "targets": [{
+        "datasource": { "type": "grafana-clickhouse-datasource", "uid": "PDEE91DDB90597936" },
+        "queryType": "sql",
+        "rawSql": "SELECT\n  replaceAll(market, 'KRW-', '') as coin,\n  trade_price as price,\n  signed_change_rate as change,\n  formatDateTime(event_time, '%H:%M:%S') as time\nFROM upbit.ticker_local\nWHERE market IN ('KRW-BTC', 'KRW-ETH', 'KRW-SOL')\nORDER BY event_time DESC\nLIMIT 9",
+        "refId": "A",
+        "format": 2
+      }]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["upbit", "crypto"],
+  "time": { "from": "now-10m", "to": "now" },
+  "timepicker": {},
+  "timezone": "Asia/Seoul",
+  "title": "Upbit Simple Dashboard",
+  "uid": "upbit-simple",
+  "version": 2
+}

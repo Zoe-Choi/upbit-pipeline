@@ -1,0 +1,37 @@
+# Upbit Pipeline Dependencies
+# Python 3.10+ required
+
+# Kafka
+confluent-kafka>=2.3.0
+
+# WebSocket
+websockets>=12.0
+
+# HTTP client (for REST API fallback)
+httpx>=0.26.0
+
+# Data processing
+pydantic>=2.5.0
+
+# Configuration
+python-dotenv>=1.0.0
+
+# Logging
+structlog>=24.1.0
+
+# CLI
+click>=8.1.0
+
+# Development
+pytest>=7.4.0
+pytest-asyncio>=0.23.0
+pytest-cov>=4.1.0
+black>=24.1.0
+ruff>=0.1.0
+mypy>=1.8.0
+
+# Optional: for ClickHouse integration
+clickhouse-connect>=0.7.0
+
+# Optional: for MinIO integration
+minio>=7.2.0

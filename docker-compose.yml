@@ -1,42 +1,51 @@
-version: '3.8'
-
-# Kafka 클러스터 (3 브로커) - KRaft 모드
+# Upbit 데이터 파이프라인 - 분산 처리 환경
+# Kafka (3 브로커) + Flink (1 JM + 2 TM) + MinIO (4노드) + ClickHouse (2 샤드)
 # M1 Pro 16GB RAM 환경에 최적화
+#
+# 리소스 사용량:
+# - Kafka (x3): 1.5GB
+# - Flink (JM + 2TM): 4.3GB
+# - MinIO (x4 + LB): 1.6GB
+# - ClickHouse (x2 + Keeper): 1.3GB
+# - Kafka UI: 0.5GB
+# - 합계: ~9.2GB
+#
+# 환경 변수: .env 파일 참조
 
 services:
-  # Kafka Broker 1 (Controller + Broker)
+  # ============================================
+  # Kafka Cluster (3 brokers) - KRaft 모드
+  # ============================================
   kafka-1:
-    image: bitnami/kafka:3.6
+    image: apache/kafka:latest
     container_name: kafka-1
     ports:
       - "9092:9092"
       - "29092:29092"
     environment:
-      # KRaft 설정
-      - KAFKA_CFG_NODE_ID=1
-      - KAFKA_CFG_PROCESS_ROLES=controller,broker
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
-      - KAFKA_KRAFT_CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
-      # 리스너 설정
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:29092
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka-1:9092,EXTERNAL://localhost:29092
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
-      # 클러스터 설정
-      - KAFKA_CFG_NUM_PARTITIONS=3
-      - KAFKA_CFG_DEFAULT_REPLICATION_FACTOR=3
-      - KAFKA_CFG_MIN_INSYNC_REPLICAS=2
-      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
-      # 메모리 설정
-      - KAFKA_HEAP_OPTS=-Xmx256m -Xms128m
-      - ALLOW_PLAINTEXT_LISTENER=yes
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092,EXTERNAL://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_HEAP_OPTS: -Xmx256m -Xms128m
     volumes:
-      - kafka_1_data:/bitnami/kafka
+      - kafka_1_data:/var/lib/kafka/data
     networks:
-      - kafka-network
+      - pipeline-network
     healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 5
@@ -46,35 +55,36 @@ services:
         limits:
           memory: 512M
 
-  # Kafka Broker 2 (Controller + Broker)
   kafka-2:
-    image: bitnami/kafka:3.6
+    image: apache/kafka:latest
     container_name: kafka-2
     ports:
       - "9093:9092"
       - "29093:29093"
     environment:
-      - KAFKA_CFG_NODE_ID=2
-      - KAFKA_CFG_PROCESS_ROLES=controller,broker
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
-      - KAFKA_KRAFT_CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:29093
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka-2:9092,EXTERNAL://localhost:29093
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
-      - KAFKA_CFG_NUM_PARTITIONS=3
-      - KAFKA_CFG_DEFAULT_REPLICATION_FACTOR=3
-      - KAFKA_CFG_MIN_INSYNC_REPLICAS=2
-      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
-      - KAFKA_HEAP_OPTS=-Xmx256m -Xms128m
-      - ALLOW_PLAINTEXT_LISTENER=yes
+      KAFKA_NODE_ID: 2
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:29093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092,EXTERNAL://localhost:29093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_HEAP_OPTS: -Xmx256m -Xms128m
     volumes:
-      - kafka_2_data:/bitnami/kafka
+      - kafka_2_data:/var/lib/kafka/data
     networks:
-      - kafka-network
+      - pipeline-network
     healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 5
@@ -84,35 +94,36 @@ services:
         limits:
           memory: 512M
 
-  # Kafka Broker 3 (Controller + Broker)
   kafka-3:
-    image: bitnami/kafka:3.6
+    image: apache/kafka:latest
     container_name: kafka-3
     ports:
       - "9094:9092"
       - "29094:29094"
     environment:
-      - KAFKA_CFG_NODE_ID=3
-      - KAFKA_CFG_PROCESS_ROLES=controller,broker
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
-      - KAFKA_KRAFT_CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:29094
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka-3:9092,EXTERNAL://localhost:29094
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
-      - KAFKA_CFG_NUM_PARTITIONS=3
-      - KAFKA_CFG_DEFAULT_REPLICATION_FACTOR=3
-      - KAFKA_CFG_MIN_INSYNC_REPLICAS=2
-      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
-      - KAFKA_HEAP_OPTS=-Xmx256m -Xms128m
-      - ALLOW_PLAINTEXT_LISTENER=yes
+      KAFKA_NODE_ID: 3
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:29094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-3:9092,EXTERNAL://localhost:29094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_HEAP_OPTS: -Xmx256m -Xms128m
     volumes:
-      - kafka_3_data:/bitnami/kafka
+      - kafka_3_data:/var/lib/kafka/data
     networks:
-      - kafka-network
+      - pipeline-network
     healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 5
@@ -122,17 +133,245 @@ services:
         limits:
           memory: 512M
 
-  # Kafka UI - 클러스터 모니터링
+  # ============================================
+  # Flink Cluster (1 JobManager + 2 TaskManagers)
+  # ============================================
+  flink-jobmanager:
+    build: ./flink
+    image: upbit-flink:1.18
+    container_name: flink-jobmanager
+    ports:
+      - "8081:8081"  # Flink Web UI
+    command: jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        jobmanager.memory.process.size: 1024m
+        jobmanager.memory.off-heap.size: 128m
+        jobmanager.memory.jvm-overhead.min: 192m
+        jobmanager.memory.jvm-overhead.max: 192m
+        state.backend: rocksdb
+        state.checkpoints.dir: s3://paimon/checkpoints
+        state.savepoints.dir: s3://paimon/savepoints
+        s3.endpoint: http://minio-1:9000
+        s3.path-style-access: true
+        s3.access-key: minioadmin
+        s3.secret-key: minioadmin
+    volumes:
+      - flink_checkpoints:/opt/flink/checkpoints
+    networks:
+      - pipeline-network
+    depends_on:
+      - minio-1
+    deploy:
+      resources:
+        limits:
+          memory: 1280M
+
+  flink-taskmanager-1:
+    build: ./flink
+    image: upbit-flink:1.18
+    container_name: flink-taskmanager-1
+    command: taskmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.memory.process.size: 1400m
+        taskmanager.memory.jvm-overhead.min: 192m
+        taskmanager.memory.jvm-overhead.max: 192m
+        taskmanager.numberOfTaskSlots: 2
+        state.backend: rocksdb
+        s3.endpoint: http://minio-1:9000
+        s3.path-style-access: true
+        s3.access-key: minioadmin
+        s3.secret-key: minioadmin
+    networks:
+      - pipeline-network
+    depends_on:
+      - flink-jobmanager
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+
+  flink-taskmanager-2:
+    build: ./flink
+    image: upbit-flink:1.18
+    container_name: flink-taskmanager-2
+    command: taskmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.memory.process.size: 1400m
+        taskmanager.memory.jvm-overhead.min: 192m
+        taskmanager.memory.jvm-overhead.max: 192m
+        taskmanager.numberOfTaskSlots: 2
+        state.backend: rocksdb
+        s3.endpoint: http://minio-1:9000
+        s3.path-style-access: true
+        s3.access-key: minioadmin
+        s3.secret-key: minioadmin
+    networks:
+      - pipeline-network
+    depends_on:
+      - flink-jobmanager
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+
+  # ============================================
+  # MinIO Distributed Cluster (4 nodes)
+  # 실제 운영환경과 유사한 분산 구성
+  # Erasure Coding으로 2노드 장애 허용
+  # ============================================
+  
+  minio-1:
+    image: minio/minio:latest
+    container_name: minio-1
+    hostname: minio-1
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    command: server --console-address ":9001" http://minio-{1...4}/data
+    volumes:
+      - minio_1_data:/data
+    networks:
+      - pipeline-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  minio-2:
+    image: minio/minio:latest
+    container_name: minio-2
+    hostname: minio-2
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    command: server --console-address ":9001" http://minio-{1...4}/data
+    volumes:
+      - minio_2_data:/data
+    networks:
+      - pipeline-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  minio-3:
+    image: minio/minio:latest
+    container_name: minio-3
+    hostname: minio-3
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    command: server --console-address ":9001" http://minio-{1...4}/data
+    volumes:
+      - minio_3_data:/data
+    networks:
+      - pipeline-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  minio-4:
+    image: minio/minio:latest
+    container_name: minio-4
+    hostname: minio-4
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    command: server --console-address ":9001" http://minio-{1...4}/data
+    volumes:
+      - minio_4_data:/data
+    networks:
+      - pipeline-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  # Nginx Load Balancer for MinIO
+  minio-lb:
+    image: nginx:alpine
+    container_name: minio-lb
+    ports:
+      - "9000:9000"   # S3 API (Load Balanced)
+      - "9001:9001"   # Web Console
+    volumes:
+      - ./minio/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - pipeline-network
+    depends_on:
+      - minio-1
+      - minio-2
+      - minio-3
+      - minio-4
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  # MinIO 초기 버킷 생성
+  minio-init:
+    image: minio/mc:latest
+    container_name: minio-init
+    depends_on:
+      minio-1:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set myminio http://minio-1:9000 minioadmin minioadmin;
+      mc mb myminio/paimon --ignore-existing;
+      mc mb myminio/checkpoints --ignore-existing;
+      mc mb myminio/warehouse --ignore-existing;
+      mc mb myminio/datalake --ignore-existing;
+      echo 'Buckets created successfully';
+      exit 0;
+      "
+    networks:
+      - pipeline-network
+
+  # ============================================
+  # Monitoring UIs
+  # ============================================
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
     ports:
       - "8080:8080"
     environment:
-      - KAFKA_CLUSTERS_0_NAME=upbit-pipeline-cluster
-      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka-1:9092,kafka-2:9092,kafka-3:9092
+      KAFKA_CLUSTERS_0_NAME: upbit-pipeline-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-1:9092,kafka-2:9092,kafka-3:9092
     networks:
-      - kafka-network
+      - pipeline-network
     depends_on:
       - kafka-1
       - kafka-2
@@ -142,11 +381,128 @@ services:
         limits:
           memory: 512M
 
+  # ============================================
+  # Grafana (Visualization + Alerting)
+  # ============================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin123}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - pipeline-network
+    depends_on:
+      - clickhouse-1
+      - clickhouse-2
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ============================================
+  # ClickHouse Cluster (2 Shards + Keeper)
+  # 실제 운영환경과 유사한 분산 구성
+  # ============================================
+  
+  # ClickHouse Keeper - 분산 조정 (ZooKeeper 대체)
+  clickhouse-keeper:
+    image: clickhouse/clickhouse-keeper:latest
+    container_name: clickhouse-keeper
+    ports:
+      - "9181:9181"   # Keeper client port
+    volumes:
+      - ./clickhouse/config/keeper-config.xml:/etc/clickhouse-keeper/keeper_config.xml
+      - clickhouse_keeper_data:/var/lib/clickhouse
+    networks:
+      - pipeline-network
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc 127.0.0.1 9181 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ClickHouse Node 1 (Shard 1)
+  clickhouse-1:
+    image: clickhouse/clickhouse-server:latest
+    container_name: clickhouse-1
+    ports:
+      - "8123:8123"   # HTTP interface
+      - "9002:9000"   # Native TCP (9000은 MinIO가 사용 중)
+    volumes:
+      - ./clickhouse/config/clickhouse-1-config.xml:/etc/clickhouse-server/config.d/config.xml
+      - ./clickhouse/config/users.xml:/etc/clickhouse-server/users.d/users.xml
+      - clickhouse_1_data:/var/lib/clickhouse
+    networks:
+      - pipeline-network
+    depends_on:
+      clickhouse-keeper:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+
+  # ClickHouse Node 2 (Shard 2)
+  clickhouse-2:
+    image: clickhouse/clickhouse-server:latest
+    container_name: clickhouse-2
+    ports:
+      - "8124:8123"   # HTTP interface
+      - "9003:9000"   # Native TCP
+    volumes:
+      - ./clickhouse/config/clickhouse-2-config.xml:/etc/clickhouse-server/config.d/config.xml
+      - ./clickhouse/config/users.xml:/etc/clickhouse-server/users.d/users.xml
+      - clickhouse_2_data:/var/lib/clickhouse
+    networks:
+      - pipeline-network
+    depends_on:
+      clickhouse-keeper:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+
 networks:
-  kafka-network:
+  pipeline-network:
     driver: bridge
 
 volumes:
   kafka_1_data:
   kafka_2_data:
   kafka_3_data:
+  minio_1_data:
+  minio_2_data:
+  minio_3_data:
+  minio_4_data:
+  flink_checkpoints:
+  clickhouse_keeper_data:
+  clickhouse_1_data:
+  clickhouse_2_data:
+  grafana_data:

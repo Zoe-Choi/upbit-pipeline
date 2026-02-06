@@ -1,0 +1,95 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "upbit-pipeline"
+version = "1.0.0"
+description = "Real-time Upbit market data pipeline with Kafka, Flink, and Paimon"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "upbit-pipeline", email = "dev@example.com"}
+]
+keywords = ["upbit", "kafka", "flink", "paimon", "streaming", "cryptocurrency"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "confluent-kafka>=2.3.0",
+    "websockets>=12.0",
+    "httpx>=0.26.0",
+    "pydantic>=2.5.0",
+    "python-dotenv>=1.0.0",
+    "click>=8.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "black>=24.1.0",
+    "ruff>=0.1.0",
+    "mypy>=1.8.0",
+]
+storage = [
+    "clickhouse-connect>=0.7.0",
+    "minio>=7.2.0",
+]
+
+[project.scripts]
+upbit-pipeline = "src.main:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/upbit-pipeline"
+Documentation = "https://github.com/yourusername/upbit-pipeline#readme"
+Repository = "https://github.com/yourusername/upbit-pipeline"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+include = '\.pyi?$'
+
+[tool.ruff]
+line-length = 100
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B008",  # do not perform function calls in argument defaults
+]
+
+[tool.ruff.isort]
+known-first-party = ["src"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-v --cov=src --cov-report=term-missing"

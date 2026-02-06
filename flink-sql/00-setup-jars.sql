@@ -1,0 +1,25 @@
+-- ============================================================
+-- Flink SQL: JAR 파일 추가 (SQL Client에서 실행)
+-- ============================================================
+-- 
+-- 이 파일은 참고용입니다. 
+-- JAR 파일은 터미널에서 먼저 다운로드해야 합니다.
+--
+-- 방법 1: 컨테이너에 직접 다운로드 (권장)
+-- --------------------------------------------------------
+-- docker exec flink-jobmanager bash -c "
+--   cd /opt/flink/lib && 
+--   wget https://repo1.maven.org/maven2/org/apache/paimon/paimon-flink-1.18/0.7.0-incubating/paimon-flink-1.18-0.7.0-incubating.jar &&
+--   wget https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.1.0-1.18/flink-sql-connector-kafka-3.1.0-1.18.jar &&
+--   wget https://repo1.maven.org/maven2/org/apache/paimon/paimon-s3/0.7.0-incubating/paimon-s3-0.7.0-incubating.jar
+-- "
+--
+-- 방법 2: Flink 클러스터 재시작
+-- --------------------------------------------------------
+-- docker compose restart flink-jobmanager flink-taskmanager-1 flink-taskmanager-2
+--
+-- 방법 3: SQL Client에서 동적 로드 (세션 한정)
+-- --------------------------------------------------------
+-- ADD JAR '/opt/flink/lib/paimon-flink-1.18-0.7.0-incubating.jar';
+-- ADD JAR '/opt/flink/lib/flink-sql-connector-kafka-3.1.0-1.18.jar';
+-- ADD JAR '/opt/flink/lib/paimon-s3-0.7.0-incubating.jar';

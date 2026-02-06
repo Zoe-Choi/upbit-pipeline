@@ -1,0 +1,53 @@
+# Grafana Alerting 프로비저닝
+# 
+# 참고: Grafana 알림은 UI에서 설정하는 것이 더 편리합니다.
+# 아래는 기본 설정 예시입니다.
+
+apiVersion: 1
+
+# Contact Points (알림 수신처)
+contactPoints:
+  - orgId: 1
+    name: default-email
+    receivers:
+      - uid: default-email
+        type: email
+        settings:
+          addresses: admin@example.com
+        disableResolveMessage: false
+
+# Notification Policies
+policies:
+  - orgId: 1
+    receiver: default-email
+    group_by: ['alertname']
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
+
+# Alert Rules (Grafana UI에서 만드는 것을 권장)
+# groups:
+#   - orgId: 1
+#     name: Upbit Price Alerts
+#     folder: Upbit
+#     interval: 1m
+#     rules:
+#       - uid: price-surge-alert
+#         title: Price Surge Alert (5%+)
+#         condition: A
+#         data:
+#           - refId: A
+#             queryType: sql
+#             datasourceUid: clickhouse
+#             model:
+#               rawSql: |
+#                 SELECT count() as surge_count
+#                 FROM upbit.ticker
+#                 WHERE event_time >= now() - INTERVAL 5 MINUTE
+#                   AND change_rate >= 0.05
+#         for: 1m
+#         annotations:
+#           summary: "Crypto price surge detected"
+#           description: "{{ $values.A }} coins surged more than 5%"
+#         labels:
+#           severity: warning
