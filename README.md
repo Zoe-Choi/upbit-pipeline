@@ -101,6 +101,7 @@ kind create cluster --name upbit-pipeline
 | MinIO S3 API | http://localhost:9000 | S3 호환 API |
 | ClickHouse 1 | http://localhost:8123 | HTTP API (Shard 1) |
 | ClickHouse 2 | http://localhost:8124 | HTTP API (Shard 2) |
+| Grafana | http://localhost:3000 | 대시보드 (기본 로그인 admin/admin) |
 
 ### MinIO 접속 정보
 
@@ -159,9 +160,12 @@ print(result.result_rows)
 upbit-pipeline/
 ├── src/                              # Python 파이프라인 소스
 │   ├── main.py                       # 엔트리 포인트
+│   ├── exceptions.py                 # 커스텀 예외
 │   ├── config/                       # 설정 관리
 │   │   └── settings.py               # 환경변수 기반 설정
 │   ├── models/                       # 데이터 모델
+│   │   ├── base.py                   # BaseMessage, MessageValidator
+│   │   ├── enums.py                  # 공통 Enum
 │   │   ├── ticker.py                 # Ticker 모델
 │   │   ├── trade.py                  # Trade 모델
 │   │   └── orderbook.py              # Orderbook 모델
@@ -183,7 +187,11 @@ upbit-pipeline/
 ├── tests/                            # 테스트
 │   ├── conftest.py
 │   ├── test_config.py
-│   └── test_models.py
+│   ├── test_models.py
+│   ├── test_serialization.py
+│   ├── test_kafka_producer.py
+│   ├── test_websocket_client.py
+│   └── test_integration.py
 ├── docker-compose.yml                # 전체 클러스터
 ├── clickhouse/
 │   ├── config/
@@ -191,29 +199,39 @@ upbit-pipeline/
 │   │   ├── clickhouse-2-config.xml
 │   │   ├── users.xml
 │   │   └── keeper-config.xml
-│   └── init.sql
+│   ├── init.sql                       # 클러스터용 DDL
+│   └── init-simple.sql               # 단일 노드용 DDL
 ├── kubernetes/
 │   ├── namespace.yaml
 │   ├── kafka.yaml
 │   └── kafka-ui.yaml
 ├── scripts/
 │   ├── run-pipeline.sh               # 파이프라인 실행
-│   ├── setup-minio-buckets.sh        # MinIO 버킷 생성
-│   ├── start-flink-jobs.sh           # Flink 잡 시작
+│   ├── setup-minio-buckets.sh         # MinIO 버킷 생성
+│   ├── setup-clickhouse-grafana.sh    # ClickHouse + Grafana 설정
+│   ├── start-flink-jobs.sh            # Flink 잡 시작
 │   ├── test-kafka.sh
 │   ├── test-clickhouse.sh
 │   ├── start-docker.sh
 │   ├── stop-docker.sh
 │   ├── start-k8s.sh
 │   └── stop-k8s.sh
-├── docs/                             # 블로그/노션 문서
+├── grafana/                           # Grafana 대시보드
+│   ├── provisioning/                 # 데이터소스·대시보드 프로비저닝
+│   └── dashboards/                    # Upbit 실시간 대시보드 JSON
+├── docs/                              # 문서
 │   ├── 00-접속정보.md
 │   ├── 01-프로젝트-개요.md
 │   ├── 02-kafka-클러스터-구축.md
 │   ├── 03-flink-클러스터-구축.md
 │   ├── 04-minio-paimon-스토리지.md
 │   ├── 05-cursor-mcp-설정.md
-│   └── 06-upbit-pipeline-구현.md
+│   ├── 06-upbit-pipeline-구현.md
+│   ├── 07-파이프라인-구축-실습.md
+│   ├── 08-clickhouse-grafana-가이드.md
+│   ├── 09-기술-선택-의사결정.md
+│   ├── 10-에러-노트.md
+│   └── 11-성능-최적화-분석.md
 ├── requirements.txt
 ├── pyproject.toml
 ├── .env.example
@@ -434,13 +452,15 @@ docker exec -it kafka-1 /opt/kafka/bin/kafka-console-consumer.sh \
 - [x] Kafka 클러스터 (3 brokers, KRaft 모드)
 - [x] Flink 클러스터 (1 JM + 2 TM)
 - [x] MinIO 스토리지 (Paimon 저장소)
-- [x] ClickHouse 클러스터 (2샤드 분산)
+- [x] ClickHouse 클러스터 (2샤드 분산 / 단일 노드 옵션)
 - [x] Apache Paimon 카탈로그 설정
 - [x] 업비트 WebSocket 데이터 수집기 구현
 - [x] Flink SQL로 실시간 분석 쿼리
-- [ ] Kafka → ClickHouse 실시간 적재
+- [x] Kafka → ClickHouse 실시간 적재 (Kafka Engine + MV)
+- [x] Grafana 대시보드 (실시간 시세 시각화)
+- [x] 클린코드 리팩토링 및 단위/통합 테스트
 - [ ] ML 모델 학습 파이프라인 구축
-- [ ] Prometheus + Grafana 모니터링
+- [ ] Prometheus 메트릭 수집
 
 ## 라이선스
 
