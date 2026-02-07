@@ -44,5 +44,4 @@ credentials/
 # Kafka data (로컬 테스트용)
 kafka-data/
 
-# 로컬 전용 (원격 미포함)
 docs/12-기술-면접-가이드.md
